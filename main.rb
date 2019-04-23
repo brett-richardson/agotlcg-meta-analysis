@@ -5,24 +5,42 @@ require './lib/popularity'
 require './lib/card'
 require './lib/pack'
 
-def get_set_value(pack, value)
-  return value if pack['total'] > 200
+CORE_SET_PRICE = 29_00
+DELUXE_PRICE   = 26_00
+CHAPTER_PRICE  = 15_00
 
-  if pack['total'] > 48 && pack['total'] < 55
-    value * 0.25
-  else
-    date = DateTime.parse pack['available']
-    difference = (DateTime.now - date) / 365.25
-    value / (difference + 1)
-  end
+def set_value(pack, value)
+  value *
+    quality_multipler(pack, value) *
+    expiry_multiplier(pack) *
+    card_cost_multiplier(pack)
+end
+
+def quality_multipler(pack, value)
+  value / pack['total']
+end
+
+def card_cost_multiplier(pack)
+  case
+  when pack['total'] > 200 then CORE_SET_PRICE
+  when pack['total'] > 50 then DELUXE_PRICE
+  else CHAPTER_PRICE
+  end / pack['total']
+end
+
+def expiry_multiplier(pack)
+  return 1 if pack['total'] > 20
+  date = DateTime.parse pack['available']
+  difference = (DateTime.now - date) / 365.25
+  (4 - difference) / 4
 end
 
 VALUES = {
-  base: 1,
-  agenda: 3,
-  plot: 3,
-  non_loyal: 1,
-  neutral: 2,
+  base: 10,
+  agenda: 40,
+  plot: 30,
+  non_loyal: 15,
+  neutral: 20,
 }
 
 sets = {}
@@ -66,7 +84,7 @@ puts sprintf("%5s | %32s | %8s | %10s | %s",
 puts "=" * 74
 
 sets.sort_by do |pack, value|
-  get_set_value(pack, value)
+  set_value(pack, value)
 end.reverse.each do |pack, value|
   percentage = (value.to_f / total_meta * 100).round 2
   date = DateTime.parse pack['available']
@@ -79,6 +97,6 @@ end.reverse.each do |pack, value|
     pack['name'],
     pack['total'],
     time_left_in_meta,
-    get_set_value(pack, value).to_i
+    set_value(pack, value).to_i
   )
 end
